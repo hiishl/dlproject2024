@@ -145,6 +145,7 @@ class GPTModel(nn.Module):
         self.out_head = nn.Linear(
             config.d_emb, config.vocab_size, bias=False
         )
+        self.config = config
 
     def forward(self, in_idx):
         batch_size, seq_len = in_idx.shape
@@ -158,4 +159,56 @@ class GPTModel(nn.Module):
         x = self.final_norm(x)
         logits = self.out_head(x)
         return logits
+    
+    @torch.no_grad()
+    def generate(self, start_context, char_si, max_length=500, temperature=1.0, top_k=None):
+        """
+        Generate text using the model.
+        
+        Args:
+        - context (torch.Tensor): The starting sequence of indices (shape: [1, context_len]).
+        - max_length (int): Maximum number of tokens to generate.
+        - temperature (float): Controls randomness in sampling (higher = more random).
+        - top_k (int): Limits sampling to the top-k most probable tokens.
+
+        Returns:
+        - torch.Tensor: The generated sequence of indices.
+        """
+        # tokenize
+        context_idx = torch.tensor([char_si.stoi.get(x) for x in start_context]).view(1, -1)
+        generated_text = start_context
+        for _ in range(max_length):
+            # forward pass to get logits
+            logits = self(context_idx)  # (1, seq_len, vocab_size)
+            logits = logits[:, -1, :]  # focus on the last token (1, vocab_size)
+
+            # apply temperature
+            logits = logits / temperature
+
+            # top-k filtering
+            if top_k is not None:
+                values, indices = torch.topk(logits, top_k)
+                logits[logits < values[:, -1, None]] = -torch.inf
+
+            # convert logits to probabilities and sample
+            probs = torch.softmax(logits, dim=-1)
+            # Sample from the distribution
+            next_token = torch.multinomial(probs, num_samples=1).flatten()
+
+            # decode the next token
+            next_char = char_si.itos[next_token.item()]
+
+            # append the new character to the text
+            generated_text += next_char
+
+            start_context = generated_text[-len(start_context):]
+            context_idx = torch.tensor([char_si.stoi.get(x) for x in start_context]).view(1, -1)
+
+        # append sampled token to context
+        #tokens = torch.cat([context, next_token], dim=1)
+
+        # decode
+        #context = ''.join([self.decoder[x.item()] for x in tokens.flatten()])
+
+        return generated_text
 

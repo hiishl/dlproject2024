@@ -11,3 +11,5 @@ class Config:
     d_mlp: int = 4
     qkv_bias: bool = True
     vocab_size: int = None
+    device: str = 'cuda'
+    num_epochs: int = 1
