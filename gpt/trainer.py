@@ -34,7 +34,6 @@ class Trainer:
         
         for epoch in range(self.num_epochs):
             self.model.train()
-            epoch_loss = 0.0
             for input_batch, target_batch in tqdm(self.train_loader, desc=f'Epoch: {epoch + 1} / {self.num_epochs}'):
                 input_batch, target_batch = input_batch.to(self.device), target_batch.to(self.device)
                 # zero grad, forward pass, compute loss
@@ -64,10 +63,10 @@ class Trainer:
                     print(f"Ep {epoch+1} (Step {self.global_step:06d}): "
                         f"Train loss {train_loss:.3f}, Val loss {val_loss:.3f}")
 
-            print(f"Epoch {epoch + 1} completed. Average train loss: {epoch_loss / len(self.train_loader):.3f}")
             # generate a sample
             if start_context and tokenizer:
-                print(self.model.generate(tokenizer(start_context), temperature=1.0, top_k=None))
+                print(f"Epoch {epoch + 1} completed.")
+                print(self.model.generate(start_context, temperature=1.0, top_k=None))
 
         # compute the total number of parameters of the model
         num_params = sum(p.numel() for p in self.model.parameters())
